@@ -1,0 +1,36 @@
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+    volumes:
+      - mongo-data:/data/db
+    # No ports published: MongoDB is only reachable from the other containers
+
+  server:
+    build: ./server
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      MONGO_URI: mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASSWORD}@mongo:27017/${MONGO_DB}?authSource=admin
+      PORT: 4000
+    depends_on:
+      - mongo
+    ports:
+      - "127.0.0.1:4000:4000" # only the host's Nginx can reach it
+
+  client:
+    build:
+      context: ./client
+      args:
+        API_URL: http://server:4000
+    restart: unless-stopped
+    depends_on:
+      - server
+    ports:
+      - "127.0.0.1:3000:3000" # only the host's Nginx can reach it
+
+volumes:
+  mongo-data:
